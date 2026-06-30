@@ -47,8 +47,9 @@ vidas = 3
 fase_atual = 1
 vidas_ganhas_consecutivas = 0
 pontos_acumulados_proxima_vida = 0
+textos_flutuantes = [] # Vai guardar listas no formato: [texto, x, y, tempo_de_vida]
 
-tam_personagem = 50
+tam_personagem = 20
 velocidade_base = tam_personagem
 
 pos_x = 0
@@ -57,6 +58,8 @@ dir_x = 0
 dir_y = 0
 corpo_cobra = []
 cobra_viva = True
+
+pode_mudar_direcao = True
 
 # =============================================================================
 # BLOCO 2: CONFIGURAÇÃO DINÂMICA DE FASES E DIFICULDADE
@@ -81,13 +84,28 @@ usa_sprites = True
 pasta_imagens = "Imagens"
 
 arquivos_sprites = {
-    "cabeca": "snake_green_head.png",
+    "cabeca": "4.png",
     "morta": "snake_green_xx.png",
-    "corpo": "snake_green_blob.png",
-    "maca_vermelha": "apple_alt.png",
-    "maca_verde": "apple_green.png",
+    "corpo": "Corpo.png",
+    "maca_vermelha": "Maçã.png",
+    "maca_verde": "Maçã.png",
     "bomba": "bomb.png"
 }
+
+try:
+    fundo_tile = pygame.image.load(
+        os.path.join(pasta_imagens, "Fundo.png")
+    ).convert()
+
+    fundo_tile = pygame.transform.scale(
+        fundo_tile,
+        (tam_personagem, tam_personagem)
+    )
+except (FileNotFoundError, pygame.error):
+    fundo_tile = None
+    print("[Aviso] Fundo não encontrado. Será usado apenas preenchimento de cor.")
+
+print("[INFO] Carregando recursos visuais...")
 
 print("[INFO] Carregando recursos visuais...")
 for chave, arquivo in arquivos_sprites.items():
@@ -144,10 +162,8 @@ def gerenciar_musica_fase(fase):
 
 
 momento_geracao = 0
-pos_fruta = None
-tipo_fruta = None
-pos_bomba = None
-bomba_ativa = False
+lista_frutas = [] # Vai guardar [ [x, y], "tipo" ]
+lista_bombas = [] # Vai guardar [x, y]
 
 
 def gerar_posicao_aleatoria():
@@ -161,25 +177,21 @@ def gerar_posicao_aleatoria():
 
 
 def spawnar_itens():
-    global pos_fruta, tipo_fruta, pos_bomba, bomba_ativa, momento_geracao
-    momento_geracao = pygame.time.get_ticks()
+    global momento_geracao
+    tempo_atual = pygame.time.get_ticks()
     chance_bomba = CONFIG_FASES[fase_atual]["chance_bomba"]
 
-    if random.random() < chance_bomba:
-        pos_bomba = gerar_posicao_aleatoria()
-        bomba_ativa = True
-        if random.random() < 0.50:
-            pos_fruta = gerar_posicao_aleatoria()
-            tipo_fruta = random.choice(["vermelha", "verde"])
-        else:
-            pos_fruta = None
-            tipo_fruta = None
-    else:
-        pos_fruta = gerar_posicao_aleatoria()
-        tipo_fruta = random.choice(["vermelha", "verde"])
-        pos_bomba = None
-        bomba_ativa = False
+    # Mantém sempre 3 maçãs na tela
+    while len(lista_frutas) < 3:
+        pos = gerar_posicao_aleatoria()
+        tipo = random.choice(["vermelha", "verde"])
+        lista_frutas.append([pos, tipo, tempo_atual])
 
+    # Coloca bombas baseado na chance, limitando a até 2 bombas simultâneas
+    # Nova estrutura da bomba: [ [x, y], tempo_em_que_nasceu ]
+    if random.random() < chance_bomba and len(lista_bombas) < 2:
+        pos_b = gerar_posicao_aleatoria()
+        lista_bombas.append([pos_b, tempo_atual])
 
 def reiniciar_posicao_cobra():
     global pos_x, pos_y, dir_x, dir_y, corpo_cobra, cobra_viva
@@ -205,6 +217,8 @@ def aplicar_morte_por_colisao(motivo):
         som_morte.play()
     if vidas > 0:
         reiniciar_posicao_cobra()
+        lista_frutas.clear()  # Limpa as frutas antigas ao morrer
+        lista_bombas.clear()  # Limpa as bombas antigas ao morrer
         spawnar_itens()
 
 
@@ -242,7 +256,7 @@ while rodando:
         if evento.type == pygame.QUIT:
             rodando = False
 
-        elif evento.type == pygame.KEYDOWN:
+        elif evento.type == pygame.KEYDOWN:  # <--- O teste de teclas começa AQUI
             if vidas <= 0:
                 score = 0
                 vidas = 3
@@ -254,23 +268,49 @@ while rodando:
                 gerenciar_musica_fase(fase_atual)
                 continue
 
-            if evento.key in [pygame.K_LEFT, pygame.K_a] and dir_x == 0:
-                dir_x = -velocidade_base;
-                dir_y = 0
-            elif evento.key in [pygame.K_RIGHT, pygame.K_d] and dir_x == 0:
-                dir_x = velocidade_base;
-                dir_y = 0
-            elif evento.key in [pygame.K_UP, pygame.K_w] and dir_y == 0:
-                dir_x = 0;
-                dir_y = -velocidade_base
-            elif evento.key in [pygame.K_DOWN, pygame.K_s] and dir_y == 0:
-                dir_x = 0;
-                dir_y = velocidade_base
+            # ATENÇÃO À INDENTAÇÃO: Tudo abaixo precisa de mais 4 espaços para ficar DENTRO do KEYDOWN
+            if pode_mudar_direcao:
+                if evento.key in [pygame.K_LEFT, pygame.K_a] and dir_x == 0:
+                    dir_x = -velocidade_base
+                    dir_y = 0
+                    pode_mudar_direcao = False
+                elif evento.key in [pygame.K_RIGHT, pygame.K_d] and dir_x == 0:
+                    dir_x = velocidade_base
+                    dir_y = 0
+                    pode_mudar_direcao = False
+                elif evento.key in [pygame.K_UP, pygame.K_w] and dir_y == 0:
+                    dir_x = 0
+                    dir_y = -velocidade_base
+                    pode_mudar_direcao = False
+                elif evento.key in [pygame.K_DOWN, pygame.K_s] and dir_y == 0:
+                    dir_x = 0
+                    dir_y = velocidade_base
+                    pode_mudar_direcao = False
+
+
+
 
     # --- 5.2: LÓGICA DE ATUALIZAÇÃO DO JOGO (Física e Regras) ---
     if vidas > 0:
-        if tempo_atual - momento_geracao > tempo_limite_item:
-            spawnar_itens()
+        # 1. Verificar e remover frutas que passaram do tempo limite
+        frutas_validas = []
+        for fruta in lista_frutas:
+            tempo_nascimento = fruta[2]
+            # Se a fruta ainda não expirou, ela continua no jogo
+            if tempo_atual - tempo_nascimento < tempo_limite_item:
+                frutas_validas.append(fruta)
+        lista_frutas = frutas_validas
+
+        # 2. Verificar e remover bombas que passaram do tempo limite
+        bombas_validas = []
+        for bomba in lista_bombas:
+            tempo_nascimento = bomba[1]
+            if tempo_atual - tempo_nascimento < tempo_limite_item:
+                bombas_validas.append(bomba)
+        lista_bombas = bombas_validas
+
+        # 3. Chama o spawn para repor os itens que sumiram (ou criar novos se faltar)
+        spawnar_itens()
 
         proximo_x = pos_x + dir_x
         proximo_y = pos_y + dir_y
@@ -287,33 +327,61 @@ while rodando:
             continue
 
         colidiu_com_bomba = False
-        if bomba_ativa:
-            if nova_cabeca == list(pos_bomba):
+        bomba_colidida = None  # <--- Nova variável para lembrar qual bomba foi atingida
+
+        for bomba in lista_bombas:
+            pos_bomba_atual = bomba[0]
+
+            # Verifica se a cabeça bateu na bomba
+            if nova_cabeca == list(pos_bomba_atual):
                 colidiu_com_bomba = True
-            else:
-                for parte in corpo_cobra:
-                    if parte == list(pos_bomba):
-                        colidiu_com_bomba = True
-                        break
+                bomba_colidida = bomba  # Guarda a bomba exata
+                break
+
+            # Verifica se alguma parte do corpo bateu na bomba
+            for parte in corpo_cobra:
+                if parte == list(pos_bomba_atual):
+                    colidiu_com_bomba = True
+                    bomba_colidida = bomba  # Guarda a bomba exata
+                    break
+
+            if colidiu_com_bomba:
+                break
 
         if colidiu_com_bomba:
+            lista_bombas.remove(bomba_colidida)  # <--- Remove a bomba explodida do jogo!
             aplicar_morte_por_bomba()
             continue
 
         pos_x = proximo_x
         pos_y = proximo_y
         corpo_cobra.insert(0, nova_cabeca)
+        pode_mudar_direcao = True
 
         # Lógica de Nutrição e Dificuldade Dinâmica [MELHORIA APLICADA]
+        # Nutrição com lista de frutas
         comeu_fruta = False
-        if pos_fruta and nova_cabeca == list(pos_fruta):
-            comeu_fruta = True
+        fruta_comida = None
+
+        for fruta in lista_frutas:
+            posicao = fruta[0]
+            if nova_cabeca == list(posicao):
+                comeu_fruta = True
+                fruta_comida = fruta
+                break
+
+        if comeu_fruta:
+            lista_frutas.remove(fruta_comida)  # Tira a fruta que foi comida da tela
 
             if som_mordida:
                 som_mordida.play()
 
             score += 10
-            pontos_acumulados_proxima_vida += 10
+
+            # Buscando a posição X e Y de dentro da estrutura da fruta que foi comida
+            pos_x_fruta = fruta_comida[0][0]
+            pos_y_fruta = fruta_comida[0][1]
+            textos_flutuantes.append(["+10!", pos_x_fruta, pos_y_fruta, 30])
 
             if pontos_acumulados_proxima_vida >= 100:
                 pontos_acumulados_proxima_vida -= 100
@@ -343,22 +411,30 @@ while rodando:
     else:
         cor_fundo_atual = COR_FUNDO_PADRAO
 
-    tela.fill(cor_fundo_atual)
+    if fundo_tile:
+        for x in range(0, LARGURA_TELA, tam_personagem):
+            for y in range(0, ALTURA_TELA, tam_personagem):
+                tela.blit(fundo_tile, (x, y))
+    else:
+        tela.fill(cor_fundo_atual)
 
-    if pos_fruta:
+    for fruta in lista_frutas:
+        pos_f = fruta[0]
+        tipo_f = fruta[1]
         if usa_sprites:
-            sprite_maca = sprites["maca_vermelha"] if tipo_fruta == "vermelha" else sprites["maca_verde"]
-            tela.blit(sprite_maca, pos_fruta)
+            sprite_maca = sprites["maca_vermelha"] if tipo_f == "vermelha" else sprites["maca_verde"]
+            tela.blit(sprite_maca, pos_f)
         else:
-            pygame.draw.rect(tela, COR_MACA,
-                             (pos_fruta[0] + 5, pos_fruta[1] + 5, tam_personagem - 10, tam_personagem - 10))
+            pygame.draw.rect(tela, COR_MACA, (pos_f[0] + 5, pos_f[1] + 5, tam_personagem - 10, tam_personagem - 10))
 
-    if bomba_ativa and pos_bomba:
+        # --- Desenhando a lista de bombas ---
+    for bomba in lista_bombas:
+        pos_bomba_atual = bomba[0]  # Pega apenas o [x, y], ignorando o tempo de nascimento
         if usa_sprites:
-            tela.blit(sprites["bomba"], pos_bomba)
+            tela.blit(sprites["bomba"], pos_bomba_atual)
         else:
             pygame.draw.rect(tela, COR_BOMBA,
-                             (pos_bomba[0] + 5, pos_bomba[1] + 5, tam_personagem - 10, tam_personagem - 10))
+                             (pos_bomba_atual[0] + 5, pos_bomba_atual[1] + 5, tam_personagem - 10, tam_personagem - 10))
 
     for indice, parte in enumerate(corpo_cobra):
         if indice == 0:
@@ -373,6 +449,28 @@ while rodando:
                 tela.blit(sprites["corpo"], (parte[0], parte[1]))
             else:
                 pygame.draw.rect(tela, COR_CORPO, (parte[0] + 2, parte[1] + 2, tam_personagem - 4, tam_personagem - 4))
+
+
+        # === DESENHANDO TEXTOS FLUTUANTES ===
+    textos_vivos = []
+    for txt in textos_flutuantes:
+            texto_string = txt[0]
+            txt_x = txt[1]
+            txt_y = txt[2]
+            tempo_vida = txt[3]
+
+            if tempo_vida > 0:
+                # Renderiza o texto verde
+                sup_txt = fonte_game.render(texto_string, True, (134, 239, 172))
+                tela.blit(sup_txt, (txt_x, txt_y))
+
+                # Move o texto para cima e diminui o tempo de vida
+                txt[2] -= 2
+                txt[3] -= 1
+                textos_vivos.append(txt)
+
+    textos_flutuantes = textos_vivos  # Atualiza a lista só com os que não sumiram
+
 
     # Desenho do Placar
     texto_score = f"SCORE: {score}"
