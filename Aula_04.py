@@ -1,9 +1,9 @@
 ##############################################################################
 ###                       P Y T H O N   C R A S H                          ###
 ##############################################################################
-#### versão 0.1 Alpha (em desenvolvimento)                                 ###
+#### versão 1.0 Alpha (em desenvolvimento)                                 ###
 ##############################################################################
-### By Professor Filipo (github.com/ProfessorFilipo)                       ###
+### By Pedro Henrique De Oliveira  (github.com/pdrho) e Arthur Lincke (github.com/Lickerere)
 ##############################################################################
 import pygame
 import sys
