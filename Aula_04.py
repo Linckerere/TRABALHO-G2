@@ -49,7 +49,7 @@ vidas_ganhas_consecutivas = 0
 pontos_acumulados_proxima_vida = 0
 textos_flutuantes = [] # Vai guardar listas no formato: [texto, x, y, tempo_de_vida]
 
-tam_personagem = 20
+tam_personagem = 30
 velocidade_base = tam_personagem
 
 pos_x = 0
@@ -66,11 +66,11 @@ pode_mudar_direcao = True
 # Dicionário central que dita as regras, áudios e metas de cada nível.
 # =============================================================================
 CONFIG_FASES = {
-    1: {"fps":  5, "chance_bomba": 0.15, "tempo_item": 6000, "musica": "Pixel adventures.mp3", "meta_vidas": 1, "meta_score": 50},
-    2: {"fps":  20, "chance_bomba": 0.25, "tempo_item": 5000, "musica": "8bit Bossa.mp3", "meta_vidas": 2, "meta_score": 70},
-    3: {"fps":  7, "chance_bomba": 0.35, "tempo_item": 4500, "musica": "2012_november_fakeAwake04 back to A minor.wav", "meta_vidas": 3, "meta_score": 90},
-    4: {"fps":  8, "chance_bomba": 0.45, "tempo_item": 4000, "musica": "fight_looped.wav", "meta_vidas": 4, "meta_score": 110},
-    5: {"fps": 10, "chance_bomba": 0.60, "tempo_item": 5000, "musica": "Orbital Colossus.mp3","meta_vidas": None, "meta_score": None}  # Fase final não possui metas de avanço
+    1: {"fps":  8, "chance_bomba": 0.15, "tempo_item": 6000, "musica": "Pixel adventures.mp3", "meta_vidas": 1, "meta_score": 50},
+    2: {"fps":  9, "chance_bomba": 0.25, "tempo_item": 5000, "musica": "8bit Bossa.mp3", "meta_vidas": 2, "meta_score": 70},
+    3: {"fps":  10, "chance_bomba": 0.35, "tempo_item": 4500, "musica": "2012_november_fakeAwake04 back to A minor.wav", "meta_vidas": 3, "meta_score": 90},
+    4: {"fps":  11, "chance_bomba": 0.45, "tempo_item": 4000, "musica": "fight_looped.wav", "meta_vidas": 4, "meta_score": 110},
+    5: {"fps": 12, "chance_bomba": 0.60, "tempo_item": 5000, "musica": "Orbital Colossus.mp3","meta_vidas": None, "meta_score": None}  # Fase final não possui metas de avanço
 }
 
 FASE_MAXIMA = max(CONFIG_FASES.keys()) # identifica qual é a "última" fase.
@@ -89,7 +89,7 @@ arquivos_sprites = {
     "corpo": "Corpo.png",
     "maca_vermelha": "Maçã.png",
     "maca_verde": "Maçã.png",
-    "bomba": "bomb.png"
+    "bomba": "bomba3.png"
 }
 
 try:
@@ -104,6 +104,27 @@ try:
 except (FileNotFoundError, pygame.error):
     fundo_tile = None
     print("[Aviso] Fundo não encontrado. Será usado apenas preenchimento de cor.")
+try:
+    parede_tile = pygame.image.load(
+        os.path.join(pasta_imagens, "Parede.png")
+    ).convert_alpha()
+
+    parede_tile = pygame.transform.scale(
+        parede_tile,
+        (tam_personagem, tam_personagem)
+    )
+except (FileNotFoundError, pygame.error):
+    parede_tile = None
+    print("[Aviso] Parede.png não encontrada.")
+try:
+    game_over_img = pygame.image.load(
+        os.path.join(pasta_imagens, "gameover.png")
+    ).convert_alpha()
+
+    game_over_img = pygame.transform.scale(game_over_img, (500, 200))
+except (FileNotFoundError, pygame.error):
+    game_over_img = None
+    print("[Aviso] gameover.png não encontrada.")
 
 print("[INFO] Carregando recursos visuais...")
 
@@ -121,11 +142,11 @@ pasta_sons = "Sons"
 
 som_morte = None
 try:
-    caminho_som = os.path.join(pasta_sons, "morreu.mp3")
+    caminho_som = os.path.join(pasta_sons, "roblox-death-sound-effect.mp3")
     som_morte = pygame.mixer.Sound(caminho_som)
-    print("[INFO] Efeito sonoro 'morreu.mp3' carregado com sucesso!")
+    print("[INFO] Efeito sonoro 'roblox-death-sound-effect.mp3' carregado com sucesso!")
 except (FileNotFoundError, pygame.error):
-    print("[Aviso] Arquivo de som 'Sons/morreu.mp3' não encontrado. O jogo rodará em modo silencioso para mortes.")
+    print("[Aviso] Arquivo de som 'Sons/roblox-death-sound-effect.mp3' não encontrado. O jogo rodará em modo silencioso para mortes.")
 
 som_mordida = None
 try:
@@ -169,9 +190,15 @@ lista_bombas = [] # Vai guardar [x, y]
 def gerar_posicao_aleatoria():
     colunas = LARGURA_TELA // tam_personagem
     linhas = ALTURA_TELA // tam_personagem
+
     while True:
-        x = random.randint(0, colunas - 1) * tam_personagem
-        y = random.randint(0, linhas - 1) * tam_personagem
+        # Evita a primeira e a última coluna (paredes)
+        x = random.randint(1, colunas - 2) * tam_personagem
+
+        # Evita a primeira e a última linha (paredes)
+        y = random.randint(1, linhas - 2) * tam_personagem
+
+        # Não gera em cima da cobra
         if [x, y] not in corpo_cobra:
             return x, y
 
@@ -239,7 +266,11 @@ def aplicar_morte_por_bomba():
 # Setup Inicial antes do loop
 reiniciar_posicao_cobra()
 spawnar_itens()
-gerenciar_musica_fase(fase_atual)
+pygame.mixer.music.load(
+    os.path.join(pasta_sons, "pixelmaniax-neon-reverie-377201.mp3")
+)
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(-1)
 
 # =============================================================================
 # BLOCO 5: O GAME LOOP (EVENTOS, ATUALIZAÇÃO E RENDERIZAÇÃO)
@@ -265,7 +296,6 @@ while rodando:
                 pontos_acumulados_proxima_vida = 0
                 reiniciar_posicao_cobra()
                 spawnar_itens()
-                gerenciar_musica_fase(fase_atual)
                 continue
 
             # ATENÇÃO À INDENTAÇÃO: Tudo abaixo precisa de mais 4 espaços para ficar DENTRO do KEYDOWN
@@ -316,7 +346,12 @@ while rodando:
         proximo_y = pos_y + dir_y
 
         # Validação de Colisões
-        if proximo_x < 0 or proximo_x > LARGURA_TELA - tam_personagem or proximo_y < 0 or proximo_y > ALTURA_TELA - tam_personagem:
+        if (
+                proximo_x <= 0 or
+                proximo_x >= LARGURA_TELA - tam_personagem or
+                proximo_y <= 0 or
+                proximo_y >= ALTURA_TELA - tam_personagem
+        ):
             aplicar_morte_por_colisao("Colisão com a Parede")
             continue
 
@@ -397,7 +432,7 @@ while rodando:
                 if vidas_ganhas_consecutivas >= meta_vidas_fase or score >= meta_score_fase:
                     fase_atual += 1
                     vidas_ganhas_consecutivas = 0
-                    gerenciar_musica_fase(fase_atual)
+
 
             spawnar_itens()
 
@@ -417,6 +452,16 @@ while rodando:
                 tela.blit(fundo_tile, (x, y))
     else:
         tela.fill(cor_fundo_atual)
+    if parede_tile:
+        # Parede superior e inferior
+        for x in range(0, LARGURA_TELA, tam_personagem):
+            tela.blit(parede_tile, (x, 0))
+            tela.blit(parede_tile, (x, ALTURA_TELA - tam_personagem))
+
+        # Parede esquerda e direita
+        for y in range(tam_personagem, ALTURA_TELA - tam_personagem, tam_personagem):
+            tela.blit(parede_tile, (0, y))
+            tela.blit(parede_tile, (LARGURA_TELA - tam_personagem, y))
 
     for fruta in lista_frutas:
         pos_f = fruta[0]
@@ -478,16 +523,36 @@ while rodando:
     texto_fase = f"FASE: {fase_atual}" if fase_atual < 5 else "FASE: FINAL (5)"
 
     if vidas <= 0:
-        texto_game_over = fonte_game.render("GAME OVER - Pressione qualquer tecla para reiniciar", True, COR_BOMBA)
-        tela.blit(texto_game_over, (LARGURA_TELA // 2 - 230, ALTURA_TELA // 2))
+        if game_over_img:
+            tela.blit(
+                game_over_img,
+                (
+                    (LARGURA_TELA - game_over_img.get_width()) // 2,
+                    (ALTURA_TELA - game_over_img.get_height()) // 2
+                )
+            )
 
-    sup_score = fonte_game.render(texto_score, True, COR_TEXTO)
-    sup_vidas = fonte_game.render(texto_vidas, True, COR_TEXTO)
-    sup_fase = fonte_game.render(texto_fase, True, COR_TEXTO)
+    # ===== Painel HUD =====
 
-    tela.blit(sup_score, (LARGURA_TELA - 160, 20))
-    tela.blit(sup_vidas, (LARGURA_TELA - 160, 50))
-    tela.blit(sup_fase, (LARGURA_TELA - 160, 80))
+    painel_x = LARGURA_TELA - 190
+    painel_y = 10
+    painel_largura = 180
+    painel_altura = 95
+
+    # Fundo do painel
+    pygame.draw.rect(tela, (25, 25, 35), (painel_x, painel_y, painel_largura, painel_altura), border_radius=10)
+
+    # Borda
+    pygame.draw.rect(tela, (255, 215, 0), (painel_x, painel_y, painel_largura, painel_altura), 3, border_radius=10)
+
+    # Textos
+    sup_score = fonte_game.render(f"⭐ Score: {score}", True, (255, 255, 255))
+    sup_vidas = fonte_game.render(f"❤ Vidas: {vidas}", True, (255, 80, 80))
+    sup_fase = fonte_game.render(f"⚡ Fase: {fase_atual}", True, (80, 220, 255))
+
+    tela.blit(sup_score, (painel_x + 12, painel_y + 10))
+    tela.blit(sup_vidas, (painel_x + 12, painel_y + 38))
+    tela.blit(sup_fase, (painel_x + 12, painel_y + 66))
 
     pygame.display.flip()
     relogio.tick(config_fase_atual["fps"])
