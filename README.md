@@ -4,8 +4,7 @@ Um jogo inspirado no clássico **Snake**, desenvolvido em **Python** utilizando 
 
 
 ## Nomes:
-**Pedro Henrique De Oliveira
-Arthur Lincke**
+**Pedro Henrique De Oliveira e Arthur Lincke**
 
 
 ## 📖 Sobre o projeto
