@@ -163,7 +163,6 @@ except (FileNotFoundError, pygame.error):
 musica_atual_tocando = None
 
 def gerenciar_musica_fase(fase):
-    """Carrega e reproduz a música correspondente à fase de forma resiliente."""
     global musica_atual_tocando
     arquivo_fase = CONFIG_FASES[fase].get("musica")
 
@@ -183,8 +182,8 @@ def gerenciar_musica_fase(fase):
 
 
 momento_geracao = 0
-lista_frutas = [] # Vai guardar [ [x, y], "tipo" ]
-lista_bombas = [] # Vai guardar [x, y]
+lista_frutas = []
+lista_bombas = []
 
 
 def gerar_posicao_aleatoria():
@@ -298,7 +297,6 @@ while rodando:
                 spawnar_itens()
                 continue
 
-            # ATENÇÃO À INDENTAÇÃO: Tudo abaixo precisa de mais 4 espaços para ficar DENTRO do KEYDOWN
             if pode_mudar_direcao:
                 if evento.key in [pygame.K_LEFT, pygame.K_a] and dir_x == 0:
                     dir_x = -velocidade_base
@@ -539,11 +537,39 @@ while rodando:
     painel_largura = 180
     painel_altura = 95
 
-    # Fundo do painel
-    pygame.draw.rect(tela, (25, 25, 35), (painel_x, painel_y, painel_largura, painel_altura), border_radius=10)
+    # Cria uma superfície transparente
+    painel = pygame.Surface((painel_largura, painel_altura), pygame.SRCALPHA)
 
-    # Borda
-    pygame.draw.rect(tela, (255, 215, 0), (painel_x, painel_y, painel_largura, painel_altura), 3, border_radius=10)
+    # Fundo do painel (último número = transparência)
+    pygame.draw.rect(
+        painel,
+        (25, 25, 35, 60),
+        (0, 0, painel_largura, painel_altura),
+        border_radius=10
+    )
+
+    # Coloca o painel na tela
+    tela.blit(painel, (painel_x, painel_y))
+
+    # Fundo transparente
+    pygame.draw.rect(
+        painel,
+        (25, 25, 35, 120),
+        (0, 0, painel_largura, painel_altura),
+        border_radius=10
+    )
+
+    # Borda transparente
+    pygame.draw.rect(
+        painel,
+        (255, 215, 0, 60),  # último número = transparência
+        (0, 0, painel_largura, painel_altura),
+        3,
+        border_radius=10
+    )
+
+    # Desenha tudo de uma vez
+    tela.blit(painel, (painel_x, painel_y))
 
     # Textos
     sup_score = fonte_game.render(f"⭐ Score: {score}", True, (255, 255, 255))
