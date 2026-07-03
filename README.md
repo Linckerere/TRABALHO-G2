@@ -1,6 +1,12 @@
-# 🐍 Python Crash
+ # 🐍 Python Crash
 
 Um jogo inspirado no clássico **Snake**, desenvolvido em **Python** utilizando a biblioteca **Pygame**. O projeto foi criado com foco em aprendizado de programação, organização de código e implementação de mecânicas mais avançadas do que o jogo original.
+
+
+## Nomes:
+**Pedro Henrique De Oliveira
+Arthur Lincke**
+
 
 ## 📖 Sobre o projeto
 
